@@ -11,13 +11,15 @@ from stable_baselines3.common.vec_env import VecMonitor, VecNormalize, VecCheckN
 # VecNormalize - a moving average, normalizing wrapper for a vectorized environment
 # VecCheckNan - raises warnings for when a value is NaN
 
-from rlgym.envs import Match # Keeps track of the settings and values of various instances of matches/games
+from rlgym_sim.envs import Match # Keeps track of the settings and values of various instances of matches/games
 
-from rlgym.utils.action_parsers import DiscreteAction # Makes things simpler conceptually and computationally
-from rlgym.utils.obs_builders import AdvancedObs # creates an observation builder for the environment
-from rlgym.utils.state_setters import DefaultState # state at which each match starts (score = 0-0, time = 0:00, etc.)
+from rlgym_sim.utils.action_parsers import DiscreteAction # Makes things simpler conceptually and computationally
+from rlgym_sim.utils.obs_builders import AdvancedObs # creates an observation builder for the environment
+from rlgym_sim.utils.state_setters import DefaultState # state at which each match starts (score = 0-0, time = 0:00, etc.)
 
-from rlgym_tools.sb3_utils import SB3MultipleInstanceEnv # allows for multiple instances to be running at the same time
+from rlgym_tools.sb3_utils import SB3MultipleInstanceEnv, SB3SingleInstanceEnv # allows for multiple instances to be running at the same time
+
+import rlgym_sim # Rocket League Gym - Simulated Rocket League environment
 
 from reward import CustomReward # custom reward function
 from termination import CustomTerminalCondition # custom terminal condition
@@ -25,8 +27,8 @@ from termination import CustomTerminalCondition # custom terminal condition
 if __name__ == '__main__':  # Required for multiprocessing
 
     # === RLGym settings ===
-    agents_per_match = 2  # 1-on-1s and there is an agent for both teams
-    num_instances = 1 # number of instances of rocket league (higher value does not necessarily mean faster training)
+    agents_per_match = 2    # 1-on-1s and there is an agent for both teams
+    num_instances = 10      # number of instances of rocket league (higher value does not necessarily mean faster training)
     frame_skip = 8          # Number of ticks to repeat an action
     fps = 120 / frame_skip  # Frames per second
     half_life_seconds = 5   # Easier to conceptualize, after this many seconds the reward discount is 0.5
@@ -57,24 +59,35 @@ if __name__ == '__main__':  # Required for multiprocessing
     training_interval = 25_000_000
     mmr_save_frequency = 50_000_000
 
+    if(num_instances > 1):
+        def get_match():  # Need to use a function so that each instance can call it and produce their own objects
+            return Match( # match object with settings/parameters
+                team_size=1, # means that the bot will be training with 1-on-1s
+                reward_function=CustomReward(), # reward function to use
+                spawn_opponents=True,  # this means that the agent will be on both teams, rather than our agent vs a rocket league bot
+                terminal_conditions=CustomTerminalCondition(fps), # terminal condition to use
+                obs_builder=AdvancedObs(),  # Not that advanced, good default
+                state_setter=DefaultState(),  # Resets to kickoff position
+                action_parser=DiscreteAction()  # Discrete > Continuous (less training time)
+            )
+        env = SB3MultipleInstanceEnv(get_match, num_instances, wait_time=0)  # Start 1 instances, waiting 60 seconds between each
+    else:
+        env = rlgym_sim.make(
+                reward_fn=CustomReward(), # reward function to use
+                terminal_conditions=CustomTerminalCondition(fps), # terminal condition to use
+                obs_builder=AdvancedObs(),  # Not that advanced, good default
+                action_parser=DiscreteAction(),  # Discrete > Continuous (less training time)
+                state_setter=DefaultState(),  # Resets to kickoff position
+                team_size=1, # means that the bot will be training with 1-on-1s
+                spawn_opponents=True,  # this means that the agent will be on both teams, rather than our agent vs a rocket league botmatch=get_match(), copy_gamestate_every_step=True,
+                tick_skip=frame_skip,
+                gravity=1.0, 
+                boost_consumption=1.0)
+        env = SB3SingleInstanceEnv(env=env)
 
-    def get_match():  # Need to use a function so that each instance can call it and produce their own objects
-        return Match( # match object with settings/parameters
-            team_size=1, # means that the bot will be training with 1-on-1s
-            tick_skip=frame_skip,
-            reward_function=CustomReward(), # reward function to use
-            spawn_opponents=True,  # this means that the agent will be on both teams, rather than our agent vs a rocket league bot
-            terminal_conditions=CustomTerminalCondition(fps), # terminal condition to use
-            obs_builder=AdvancedObs(),  # Not that advanced, good default
-            state_setter=DefaultState(),  # Resets to kickoff position
-            action_parser=DiscreteAction()  # Discrete > Continuous (less training time)
-        )
-
-    env = SB3MultipleInstanceEnv(get_match, num_instances)  # Start 1 instances, waiting 60 seconds between each
     env = VecCheckNan(env)                                  # Optional
     env = VecMonitor(env)                                   # Recommended, logs mean reward and ep_len to Tensorboard
     env = VecNormalize(env, norm_obs=False, gamma=gamma)    # Highly recommended, normalizes rewards
-
 
     print("Stable Baselines 3 Version:", version('stable-baselines3'))
     model = PPO(

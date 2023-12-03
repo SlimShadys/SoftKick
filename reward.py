@@ -1,8 +1,8 @@
-from rlgym.utils.reward_functions import RewardFunction
-from rlgym.utils.gamestates import GameState, PlayerData
-from rlgym.utils.reward_functions.common_rewards.misc_rewards import EventReward # allows to set reward for each event occurring
-from rlgym.utils.reward_functions.common_rewards.player_ball_rewards import VelocityPlayerToBallReward # gives the agent a reward for its velocity in the direction of the ball
-from rlgym.utils.reward_functions.common_rewards.player_ball_rewards import TouchBallReward
+from rlgym_sim.utils.reward_functions import RewardFunction
+from rlgym_sim.utils.gamestates import GameState, PlayerData
+from rlgym_sim.utils.reward_functions.common_rewards.misc_rewards import EventReward # allows to set reward for each event occurring
+from rlgym_sim.utils.reward_functions.common_rewards.player_ball_rewards import VelocityPlayerToBallReward # gives the agent a reward for its velocity in the direction of the ball
+from rlgym_sim.utils.reward_functions.common_rewards.player_ball_rewards import TouchBallReward
 
 import numpy as np
 
@@ -17,8 +17,9 @@ class CustomReward(RewardFunction):
     self.ballTouchedByPlayer = TouchBallReward()
     self.velocityPlayerToBallReward = VelocityPlayerToBallReward()
     self.eventReward = EventReward(
-    shot=10.0,
-    boost_pickup=2.0,
+    shot = 10.0,
+    touch = 2.0,
+    boost_pickup = 1.0,
     )
 
   def reset(self, initial_state: GameState):
@@ -35,7 +36,7 @@ class CustomReward(RewardFunction):
     reward = event * self.rewardWeights["event"] + \
              ballTouched * self.rewardWeights["ball_touched"] + \
              velocityPlayerToBall * self.rewardWeights["velocity_player_to_ball"]
-
+    
     return reward
     
   def get_final_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:

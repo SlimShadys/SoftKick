@@ -17,18 +17,18 @@ class CustomTerminalCondition(TerminalCondition):
 
      self.timeoutCondition = TimeoutCondition(self.fps * self.timeoutConditionSeconds)
      self.noTouchTimeoutCondition = NoTouchTimeoutCondition(self.fps * self.timeoutNoTouchSeconds)
-     self.ballTouchCondition = BallTouchedCondition()
-     self.goalScoredCondition = GoalScoredCondition()
+     #self.ballTouchCondition = BallTouchedCondition()
+     #self.goalScoredCondition = GoalScoredCondition()
 
   def reset(self, initial_state: GameState):
 
     self.timeoutCondition.reset(initial_state)
     self.noTouchTimeoutCondition.reset(initial_state)
-    self.goalScoredCondition.reset(initial_state)   
-    self.ballTouchCondition.reset(initial_state)
+    #self.goalScoredCondition.reset(initial_state)   
+    #self.ballTouchCondition.reset(initial_state)
 
   def is_terminal(self, current_state: GameState) -> bool:
     return self.timeoutCondition.is_terminal(current_state) or \
-           self.noTouchTimeoutCondition.is_terminal(current_state) or \
-           self.goalScoredCondition.is_terminal(current_state) or \
-           self.ballTouchCondition.is_terminal(current_state)
+           self.noTouchTimeoutCondition.is_terminal(current_state)# or \
+           #self.goalScoredCondition.is_terminal(current_state) or \
+           #self.ballTouchCondition.is_terminal(current_state)
