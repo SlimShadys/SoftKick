@@ -10,7 +10,6 @@ class KickoffTerminalCondition(TerminalCondition):
     self.fps = fps
     self.radius = 1200**2
     self.timeoutNoTouchSeconds = 100 # 100 seconds of no touch and we reset the game
-
     self.noTouchTimeoutCondition = NoTouchTimeoutCondition(self.fps * self.timeoutNoTouchSeconds)
 
   def reset(self, initial_state: GameState):
@@ -18,9 +17,11 @@ class KickoffTerminalCondition(TerminalCondition):
     return
   
   def is_terminal(self, current_state: GameState) -> bool:
-
+    # ===============================
     # Ball outside the circle of 1200 radius
-    if np.linalg.norm(np.array([current_state.ball.position[0], current_state.ball.position[1], current_state.ball.position[2]]) - np.array([0, 0, 97])) > self.radius:
+    # (x^2 + y^2) > r^2
+    # ===============================
+    if (current_state.ball.position[0]**2 + current_state.ball.position[1]**2) > self.radius or self.noTouchTimeoutCondition.is_terminal(current_state):
       return True
     else:
       return False

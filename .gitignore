@@ -4,3 +4,6 @@
 # For now, ignore WANB files and checkpoints
 **/wandb/
 **/checkpoints/
+
+# Ignore collision files
+**/collision_meshes/
