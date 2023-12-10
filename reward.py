@@ -3,7 +3,7 @@ from rlgym_sim.utils.gamestates import GameState, PlayerData
 from rlgym_sim.utils.reward_functions.common_rewards.misc_rewards import EventReward # allows to set reward for each event occurring
 from rlgym_sim.utils.reward_functions.common_rewards.player_ball_rewards import VelocityPlayerToBallReward # gives the agent a reward for its velocity in the direction of the ball
 from rlgym_sim.utils.reward_functions.common_rewards.player_ball_rewards import TouchBallReward
-from rlgym_sim.utils.reward_functions.common_rewards.ball_goal_rewards import VelocityBallToGoalReward
+from rlgym_sim.utils.common_values import CAR_MAX_SPEED
 
 import numpy as np
 
@@ -14,112 +14,76 @@ class NaiveSpeedReward(RewardFunction):
     def get_reward(
         self, player: PlayerData, state: GameState, previous_action: np.ndarray
     ) -> float:
-        return abs(np.linalg.norm(player.car_data.linear_velocity)) / 2300
-
-class KickOffDistance(RewardFunction):
-    def __init__(self):
-        super().__init__()
-
-    def reset(self, initial_state: GameState):
-        pass
-
-    def closest_to_ball(self, player: PlayerData, state: GameState) -> bool:
-        player_dist = np.linalg.norm(player.car_data.position - state.ball.position)
-        for p in state.players:
-            if p.car_id != player.car_id:
-              positionOpponent = p.car_data.position
-              dist = np.linalg.norm(positionOpponent - state.ball.position)
-
-              if dist < player_dist:
-                  return False
-
-        return True
-
-    def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
-        if state.ball.position[0] == 0 and state.ball.position[1] == 0 and self.closest_to_ball(player, state):
-          return 1
-        else:
-          return 0
+        return abs(np.linalg.norm(player.car_data.linear_velocity)) / CAR_MAX_SPEED
 
 class CustomReward(RewardFunction):
-  def __init__(self) -> None:
+  def __init__(self, gamma=0.998) -> None:
     super().__init__()
     self.rewardWeights = {
-        "kick_off_distance": 0.025,
-        "ball_touched": 1.0,
-        "velocity_player_to_ball": 0.05,
-        "naive_speed": 0.02,
-        "first_touch": 1.0,
-        "event": 0.01}
+        "ball_touched": 1.6,
+        "velocity_player_to_ball": 0.85,
+        "naive_speed": 0.9,
+        "event": 0.05}
 
-    self.kickOffDistance = KickOffDistance()
-    self.ballTouchedByPlayer = TouchBallReward()
-    self.velocityPlayerToBallReward = VelocityPlayerToBallReward()
-    self.velocityBallToGoalReward = VelocityBallToGoalReward()
-    self.naiveSpeedReward = NaiveSpeedReward()
-    self.eventReward = EventReward(
+    self.ballTouchedByPlayer = TouchBallReward()                    # Returns 1.0 if the player touches the ball      / Max 1.0
+    self.velocityPlayerToBallReward = VelocityPlayerToBallReward()  # Returns the velocity of the player to the ball  / Max 1.0
+    self.naiveSpeedReward = NaiveSpeedReward()                      # Returns the naive speed of the player           / Max 1.0
+    self.eventReward = EventReward(                                 # Returns a reward for each event                 / Max 1.0 * 1.0 + 1.0 * 2.0 = 3.00
       touch = 2.0,
       boost_pickup = 1.0,
-      shot = 1.0,
     )
 
-    self.touch_counter = 0
-
-  def pre_step(self, state: GameState):
-     if any([p.ball_touched for p in state.players]):
-        self.touch_counter += 1
-     return
+    self.upperBound = 3.65  # Maximum reward per tick
+    self.gamma = gamma      # 0.9908006132652293
 
   def reset(self, initial_state: GameState):
-    self.kickOffDistance.reset(initial_state)
     self.ballTouchedByPlayer.reset(initial_state)
     self.velocityPlayerToBallReward.reset(initial_state)
     self.naiveSpeedReward.reset(initial_state)
     self.eventReward.reset(initial_state)
-    self.velocityBallToGoalReward.reset(initial_state)
-
-    self.touch_counter = 0
 
   # // TODO
   # We could add a possible reward(s) as follows:
-  # 1) Do we need touch EventReward if we have ballTouched reward? We know we might end the game if the ball is outside the radius, so we might not need it.
-  # 2) Agent should learn to use boost properly
-  # 3) Agent should learn to use dodge properly
+  # 1) Agent should learn to use boost properly
+  # 2) Agent should learn to use dodge properly
   def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
 
-    kickOffDistance = self.kickOffDistance.get_reward(player, state, previous_action)                 # Get reward for being the closest player to the ball at kick off
     ballTouched = self.ballTouchedByPlayer.get_reward(player, state, previous_action)                 # Get reward for touching the ball
     velocityPlayerToBall = self.velocityPlayerToBallReward.get_reward(player, state, previous_action) # Get reward for velocity of player to ball
     naiveSpeed = self.naiveSpeedReward.get_reward(player, state, previous_action)                     # Get reward for naive speed
     event = self.eventReward.get_reward(player, state, previous_action)                               # Get reward for events
-    firstTouch = 0
-
-    # First touch reward
-    if(player.ball_touched and self.touch_counter == 1):
-      firstTouch = 1.0
 
     # Return the sum of the weighted rewards
-    reward = kickOffDistance * self.rewardWeights["kick_off_distance"] + \
-             ballTouched * self.rewardWeights["ball_touched"] + \
+    reward = ballTouched * self.rewardWeights["ball_touched"] + \
              velocityPlayerToBall * self.rewardWeights["velocity_player_to_ball"] + \
              naiveSpeed * self.rewardWeights["naive_speed"] + \
-             event * self.rewardWeights["event"] + \
-             firstTouch * self.rewardWeights["first_touch"]
+             event * self.rewardWeights["event"]
     return reward
     
   def get_final_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
     # Final reward is given when ball is outside of the radius or when the timeout is reached
     # ==================================
+    # Team:
+    #   - 0 -> Blue team
+    #   - 1 -> Orange team
     # Field:
     #   - Positive coord -> Orange field
     #   - Negative coord -> Blue field
-    # If the ball is being sent towards the opposite field, give a reward summed with the velocity of the ball towards the goal (Max: +2.0)
-    # else, give a negative reward summed with the velocity of the ball towards the goal (Max: -2.0)
+    # If the ball is being sent towards the opposite field, give a positive reward
+    # else, give a negative reward 
     # ==================================
 
-    # This is automatically positive/negative based on the player team
-    reward_factor = self.velocityBallToGoalReward.get_reward(player, state, previous_action)
-    if player.team_num == 0: # BLUE TEAM
-        return 1.0 + reward_factor if state.ball.position[0] > 0 else -1.0
-    else:                    # ORANGE TEAM
-        return 1.0 + reward_factor if state.ball.position[0] < 0 else -1.0
+    reward = 0.0
+    reward += self.ballTouchedByPlayer.get_final_reward(player, state, previous_action) * self.rewardWeights["ball_touched"]
+    reward += self.velocityPlayerToBallReward.get_final_reward(player, state, previous_action) * self.rewardWeights["velocity_player_to_ball"]
+    reward += self.naiveSpeedReward.get_final_reward(player, state, previous_action) * self.rewardWeights["naive_speed"]
+    reward += self.eventReward.get_final_reward(player, state, previous_action) * self.rewardWeights["event"]
+
+    # We now calculate final reward as ((upper_bound / 1-gamma) / 20).
+    # 20 is a magic number that we found to work discretely well.
+    if (player.team_num == 0 and state.ball.position[1] > 0) or (player.team_num == 1 and state.ball.position[1] < 0):
+        reward += (self.upperBound / (1 - self.gamma)) / 20 # Ball is being sent towards the opponent field
+    else:
+        reward -= (self.upperBound / (1 - self.gamma)) / 20 # Ball is being sent towards our field
+
+    return reward

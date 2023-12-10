@@ -3,32 +3,38 @@ import numpy as np
 #import rlgym
 import rlgym_sim as rlgym
 
-from rlgym_ppo import Learner
 from rlgym.utils.action_parsers import DiscreteAction
 from rlgym.utils.obs_builders import DefaultObs
 from rlgym.utils.state_setters import DefaultState  # state at which each match starts (score = 0-0, time = 0:00, etc.)
+from rlgym_ppo import Learner
 
+from logger import Logger
 from reward import CustomReward
 from termination import KickoffTerminalCondition
-from logger import Logger
 
 def makeEnvironment():
-    spawn_opponents = True
-    team_size = 1
+
+    # RLGym tick settings
     game_tick_rate = 120
     tick_skip = 8
-    timeout_seconds = 10
     fps = game_tick_rate / tick_skip
+
+    # RLGym-PPO settings
     half_life_seconds = 5
-    timeout_ticks = int(round(timeout_seconds * game_tick_rate / tick_skip))
     gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))  # calculating discount
 
+    # RLGym match settings
+    spawn_opponents = True
+    team_size = 1
     action_parser = DiscreteAction()
-
-    terminal_conditions = KickoffTerminalCondition(game_tick_rate / tick_skip)
-    reward_fn = CustomReward()
+    terminal_conditions = KickoffTerminalCondition(fps=fps)
+    reward_fn = CustomReward(gamma=gamma)
     state_setter = DefaultState()
     obs_builder = DefaultObs()
+
+    # For directly having ticks
+    timeout_seconds = 6 # As per timeout condition in termination.py
+    timeout_ticks = int(round(timeout_seconds * game_tick_rate / tick_skip))
 
     env = rlgym.make(tick_skip=tick_skip,
                          team_size=team_size,
@@ -43,8 +49,15 @@ def makeEnvironment():
 if __name__ == "__main__":
     metrics_logger = Logger()
 
-    # 40 processes
-    n_proc = 40
+    # RLGym-PPO gamma calculation
+    game_tick_rate = 120
+    tick_skip = 8
+    fps = game_tick_rate / tick_skip
+    half_life_seconds = 5
+    gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))  # calculating discount
+
+    # 45 processes
+    n_proc = 45
 
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.9)))
@@ -60,7 +73,7 @@ if __name__ == "__main__":
                       policy_layer_sizes=(1024, 512, 512, 512),
                       critic_layer_sizes=(1024, 512, 512, 512),
                       ppo_ent_coef=0.0001,
-                      gae_gamma=0.996,
+                      gae_gamma=gamma,
                       policy_lr=0.001,
                       critic_lr=0.001,
                       standardize_returns=True,
@@ -68,8 +81,9 @@ if __name__ == "__main__":
                       save_every_ts=100_000,
                       timestep_limit=1_000_000_000,
                       metrics_logger=metrics_logger,
-                      wandb_project_name="rlgym-ppo",
-                      wandb_group_name="v0.2",
-                      log_to_wandb=True)
+                      wandb_project_name="SoftKick",
+                      wandb_group_name="v0.5",
+                      log_to_wandb=True,
+                      checkpoint_load_folder=None,)
     
     learner.learn()

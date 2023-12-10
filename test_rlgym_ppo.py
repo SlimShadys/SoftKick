@@ -1,23 +1,26 @@
+import numpy as np
 import rlgym
 
-from rlgym.utils.obs_builders import DefaultObs
 from rlgym.utils.action_parsers import DiscreteAction
+from rlgym.utils.obs_builders import DefaultObs
 from rlgym.utils.state_setters import DefaultState
+from rlgym_ppo import Learner
 
 from reward import CustomReward
 from termination import KickoffTerminalCondition
-from rlgym_ppo import Learner
 
 def makeTestEnvironment():
-    spawn_opponents = True
-    team_size = 1
+
+    # For directly having ticks
     game_tick_rate = 120
     tick_skip = 8
+    fps = game_tick_rate / tick_skip
 
+    # RLGym match settings
+    spawn_opponents = True
+    team_size = 1
     action_parser = DiscreteAction()
-
-    terminal_conditions = KickoffTerminalCondition(game_tick_rate / tick_skip)
-
+    terminal_conditions = KickoffTerminalCondition(fps=fps)
     reward_fn = CustomReward()
     obs_builder = DefaultObs()
     state_setter = DefaultState()
@@ -34,6 +37,13 @@ def makeTestEnvironment():
     return env
 
 if __name__ == "__main__":
+
+    # RLGym-PPO gamma calculation
+    game_tick_rate = 120
+    tick_skip = 8
+    fps = game_tick_rate / tick_skip
+    half_life_seconds = 5
+    gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))  # calculating discount
 
     # 1 process just for testing
     n_proc = 1
@@ -53,7 +63,7 @@ if __name__ == "__main__":
                       critic_layer_sizes=(1024, 512, 512, 512),
                       ppo_epochs=1,
                       ppo_ent_coef=0.0001,
-                      gae_gamma=0.996,
+                      gae_gamma=gamma,
                       policy_lr=0.001,
                       critic_lr=0.001,
                       standardize_returns=True,
@@ -61,7 +71,7 @@ if __name__ == "__main__":
                       save_every_ts=100_000,
                       timestep_limit=1_000_000_000,
                       load_wandb=True,
-                      checkpoint_load_folder="C:/Users/gianm/Documents/Università-Git/SoftKick/data/checkpoints/rlgym-ppo-run-1701722416949958700/22359056",
+                      checkpoint_load_folder=None,
                       log_to_wandb=False)
     
     learner.learn()
