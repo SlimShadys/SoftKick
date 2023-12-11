@@ -82,7 +82,7 @@ if __name__ == "__main__":
                       timestep_limit=1_000_000_000,
                       metrics_logger=metrics_logger,
                       wandb_project_name="SoftKick",
-                      wandb_group_name="v0.5",
+                      wandb_group_name="v0.5.1",
                       log_to_wandb=True,
                       checkpoint_load_folder=None,)
     
