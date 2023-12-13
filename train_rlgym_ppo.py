@@ -34,7 +34,7 @@ def makeEnvironment():
 
     # For directly having ticks
     timeout_seconds = 6 # As per timeout condition in termination.py
-    timeout_ticks = int(round(timeout_seconds * game_tick_rate / tick_skip))
+    timeout_ticks = int(round(timeout_seconds * fps))
 
     env = rlgym.make(tick_skip=tick_skip,
                          team_size=team_size,
@@ -74,16 +74,18 @@ if __name__ == "__main__":
                       critic_layer_sizes=(1024, 512, 512, 512),
                       ppo_ent_coef=0.0001,
                       gae_gamma=gamma,
-                      policy_lr=0.001,
-                      critic_lr=0.001,
+                      policy_lr=3e-4,
+                      critic_lr=2.5e-4,
                       standardize_returns=True,
                       standardize_obs=False,
                       save_every_ts=100_000,
                       timestep_limit=1_000_000_000,
                       metrics_logger=metrics_logger,
                       wandb_project_name="SoftKick",
-                      wandb_group_name="v0.5.1",
+                      wandb_group_name="v0.5.1.2",
+                      wandb_run_name="3rd try",
                       log_to_wandb=True,
+                      load_wandb=True,
                       checkpoint_load_folder=None,)
     
     learner.learn()

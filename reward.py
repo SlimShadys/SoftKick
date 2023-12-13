@@ -49,15 +49,16 @@ class SustainedVelocityPlayerToBallReward(RewardFunction):
         return 0.0
 
 class CustomReward(RewardFunction):
-  def __init__(self, gamma=0.990800) -> None:
+  def __init__(self, gamma=0.9908006132652293) -> None:
     super().__init__()
     self.rewardWeights = {
         "face_ball": 0.02,
         "sustainedVelocity": 0.20,
-        "ball_touched": 3.2,
-        "velocity_player_to_ball": 0.9,
-        "naive_speed": 1.0,
-        "event": 0.06}
+        "ball_touched": 4.5,
+        "velocity_player_to_ball": 2.70,
+        "naive_speed": 1.15,
+        "event": 0.06
+    }
 
     self.faceBallReward = FaceBallReward()                                # Returns 1.0 if the player faces the ball         / Max 1.0
     self.ballTouchedByPlayer = TouchBallReward()                          # Returns 1.0 if the player touches the ball       / Max 1.0
@@ -69,9 +70,13 @@ class CustomReward(RewardFunction):
       boost_pickup = 1.0,
     )
 
-    self.upperBound = 5.50  # Maximum reward per tick
-    self.gamma = gamma      # 0.9908006132652293
-    self.finalUpperBound = (self.upperBound / (1 - self.gamma)) / 25 # 25 is a magic number that we found to work discretely well.
+    #self.gamma = gamma      # 0.9908006132652293
+    #self.upperBound = 9.25  # Maximum reward per tick
+    #self.finalUpperBound = (self.upperBound / (1 - self.gamma)) / 25 # 25 is a magic number that we found to work discretely well.
+    
+    # New calculation for the final reward (given by RLBot over 100 episodes)
+    threshold_to_add = 0.5
+    self.finalUpperBound = 1.3480791167173873 + threshold_to_add 
 
   def reset(self, initial_state: GameState):
     self.faceBallReward.reset(initial_state)
@@ -128,6 +133,6 @@ class CustomReward(RewardFunction):
     if (player.team_num == 0 and state.ball.position[1] > 0) or (player.team_num == 1 and state.ball.position[1] < 0):
         reward += self.finalUpperBound # Ball is being sent towards the opponent field
     else:
-        reward -= self.finalUpperBound # Ball is being sent towards our field
+        reward -= self.finalUpperBound # Ball is being sent towards our field or is in the center of the field without any player touching it
 
     return reward

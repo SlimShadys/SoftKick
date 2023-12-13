@@ -64,13 +64,13 @@ if __name__ == "__main__":
                       ppo_epochs=1,
                       ppo_ent_coef=0.0001,
                       gae_gamma=gamma,
-                      policy_lr=0.001,
-                      critic_lr=0.001,
+                      policy_lr=3e-4,
+                      critic_lr=2.5e-4,
                       standardize_returns=True,
                       standardize_obs=False,
                       save_every_ts=100_000,
                       timestep_limit=1_000_000_000,
-                      load_wandb=True,
+                      load_wandb=False,
                       checkpoint_load_folder=None,
                       log_to_wandb=False)
     
