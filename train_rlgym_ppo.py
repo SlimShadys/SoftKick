@@ -56,8 +56,10 @@ if __name__ == "__main__":
     half_life_seconds = 5
     gamma = np.exp(np.log(0.5) / (fps * half_life_seconds))  # calculating discount
 
-    # 45 processes
-    n_proc = 45
+    # Processes:
+    # - Victus 16 : Max. 45, Usable 35/40
+    # - PC        : Max. 55, Usable 45/50
+    n_proc = 55
 
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.9)))
@@ -82,8 +84,9 @@ if __name__ == "__main__":
                       timestep_limit=1_000_000_000,
                       metrics_logger=metrics_logger,
                       wandb_project_name="SoftKick",
-                      wandb_group_name="v0.5.1.2",
-                      wandb_run_name="3rd try",
+                      wandb_group_name="v0.5.1.3",
+                      wandb_run_name="2nd try",
+                      n_checkpoints_to_keep=100,
                       log_to_wandb=True,
                       load_wandb=True,
                       checkpoint_load_folder=None,)

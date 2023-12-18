@@ -70,6 +70,7 @@ class MyBot(BaseAgent):
         _path = pathlib.Path(__file__).parent.resolve()
         sys.path.append(_path)
         self.policy.load_state_dict(torch.load(str(_path) + "/checkpoint/PPO_POLICY.pt"))
+        print("Policy loaded!")
         self.controls = SimpleControllerState()
         self.ticks_since_tried_score = 0
 
